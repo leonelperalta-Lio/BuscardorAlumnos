@@ -60,12 +60,23 @@ if archivo_subido is not None:
             # --- PANEL DE CONTROL LATERAL (FILTROS) ---
             st.sidebar.header("🛠️ Panel de Filtros")
             
-            # Filtro principal: El Curso
+            # NUEVO: Filtro principal MULTIPLE para los Cursos
             lista_cursos = sorted(df_limpio[COLUMNA_PRINCIPAL].unique())
-            curso_seleccionado = st.sidebar.selectbox("1. Seleccioná el Curso:", lista_cursos)
+            opciones_seleccion_curso = ["✨ Todos los Cursos"] + lista_cursos
             
-            # Filtramos inicialmente por ese curso
-            df_filtrado = df_limpio[df_limpio[COLUMNA_PRINCIPAL] == curso_seleccionado].copy()
+            cursos_seleccionados = st.sidebar.multiselect(
+                "1. Seleccioná uno o varios Cursos:", 
+                options=opciones_seleccion_curso,
+                default=["✨ Todos los Cursos"] # Por defecto arranca mostrando todo
+            )
+            
+            # Aplicamos la lógica de filtrado de curso
+            if not cursos_seleccionados or "✨ Todos los Cursos" in cursos_seleccionados:
+                df_filtrado = df_limpio.copy()
+                titulo_reporte = "Todos los Cursos"
+            else:
+                df_filtrado = df_limpio[df_limpio[COLUMNA_PRINCIPAL].isin(cursos_seleccionados)].copy()
+                titulo_reporte = "Cursos Seleccionados"
             
             # Filtros dinámicos adicionales para el resto de las columnas (Estado, Comisión, etc.)
             st.sidebar.markdown("---")
@@ -74,7 +85,6 @@ if archivo_subido is not None:
             for col in columnas_reales:
                 valores_unicos = sorted(df_filtrado[col].dropna().astype(str).unique())
                 if valores_unicos:
-                    # CORREGIDO: Usamos 'options' en inglés para evitar el error previo
                     seleccion = st.sidebar.multiselect(f"Filtrar por {col.title()}:", options=valores_unicos)
                     if seleccion:
                         df_filtrado = df_filtrado[df_filtrado[col].astype(str).isin(seleccion)]
@@ -82,14 +92,17 @@ if archivo_subido is not None:
             # --- SELECCIÓN DE COLUMNAS VISIBLES ---
             st.sidebar.markdown("---")
             st.sidebar.subheader("3. Columnas Visibles:")
+            
+            # NUEVO: Añadimos de manera opcional ver la columna del Curso asignado
+            todas_las_opciones_columnas = [COLUMNA_PRINCIPAL] + columnas_reales
             columnas_visibles = st.sidebar.multiselect(
                 "Elegí qué columnas querés ver:",
-                options=columnas_reales,
-                default=columnas_reales
+                options=todas_las_opciones_columnas,
+                default=columnas_reales # Por defecto muestra solo los datos del alumno sin repetir el curso
             )
             
             # --- DESPLIEGUE DE RESULTADOS ---
-            st.subheader(f"📊 Resultados para: {curso_seleccionado}")
+            st.subheader(f"📊 Resultados para: {titulo_reporte}")
             
             if not columnas_visibles:
                 st.warning("Por favor, seleccioná al menos una columna en el panel izquierdo para visualizar los datos.")
@@ -107,12 +120,15 @@ if archivo_subido is not None:
                 st.markdown("### 📥 Exportar Resultados")
                 col_btn1, col_btn2 = st.columns(2)
                 
+                # Nombre del archivo dinámico
+                nombre_archivo_limpio = titulo_reporte.replace(' ', '_')
+                
                 # Descarga en CSV
                 csv_data = df_final_mostrar.to_csv(index=False).encode('utf-8-sig')
                 col_btn1.download_button(
                     label="📄 Descargar en formato CSV",
                     data=csv_data,
-                    file_name=f"Filtro_{curso_seleccionado.replace(' ', '_')}.csv",
+                    file_name=f"Filtro_{nombre_archivo_limpio}.csv",
                     mime="text/csv",
                     use_container_width=True
                 )
@@ -126,7 +142,7 @@ if archivo_subido is not None:
                 col_btn2.download_button(
                     label="🟢 Descargar en formato EXCEL",
                     data=excel_data,
-                    file_name=f"Filtro_{curso_seleccionado.replace(' ', '_')}.xlsx",
+                    file_name=f"Filtro_{nombre_archivo_limpio}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
